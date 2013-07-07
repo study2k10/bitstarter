@@ -24,6 +24,8 @@ References:
 var fs = require('fs');
 var program = require('commander');
 var cheerio = require('cheerio');
+var rest = require('restler');
+var util = require('util');
 var HTMLFILE_DEFAULT = "index.html";
 var CHECKSFILE_DEFAULT = "checks.json";
 
@@ -37,7 +39,7 @@ var assertFileExists = function(infile) {
 };
 
 var cheerioHtmlFile = function(htmlfile) {
-    return cheerio.load(fs.readFileSync(htmlfile));
+    return cheerio.load(htmlfile);
 };
 
 var loadChecks = function(checksfile) {
@@ -55,6 +57,24 @@ var checkHtmlFile = function(htmlfile, checksfile) {
     return out;
 };
 
+var checkToStdout = function (htmlfile, checksfile) {
+    var checkJson = checkHtmlFile(htmlfile, checksfile);
+    var outJson = JSON.stringify(checkJson, null, 4);
+    console.log(outJson);
+}
+
+var buildCheckURLFunc = function(checksfile) {
+    var checkURL = function(result, response) {
+	if (result instanceof Error) {
+            console.error('Error: ' + util.format(result.message));
+        } else {
+	    	console.log("Retrieved file from URL, using \"%s\" for checking ...", checksfile);
+	    	checkToStdout(response.rawEncoded, checksfile);
+		}
+    };
+	return checkURL;
+}
+
 var clone = function(fn) {
     // Workaround for commander.js issue.
     // http://stackoverflow.com/a/6772648
@@ -64,11 +84,24 @@ var clone = function(fn) {
 if(require.main == module) {
     program
         .option('-c, --checks <check_file>', 'Path to checks.json', clone(assertFileExists), CHECKSFILE_DEFAULT)
-        .option('-f, --file <html_file>', 'Path to index.html', clone(assertFileExists), HTMLFILE_DEFAULT)
-        .parse(process.argv);
-    var checkJson = checkHtmlFile(program.file, program.checks);
-    var outJson = JSON.stringify(checkJson, null, 4);
-    console.log(outJson);
+    program
+	.command('file <PATH>')
+	.description('Local file to check')
+	.action(function(path) {
+	console.log("Checking file \"%s\"", path);
+		assertFileExists(path); /* Hacky due to exit(1) inside the function. */
+		var htmlFile = fs.readFileSync(path); 
+    	checkToStdout(htmlFile, program.checks);
+	});
+    program
+	.command('url <URL>')
+	.description('URL to check')
+	.action(function(url) {
+		console.log("Checking URL \"%s\"", url);
+		var fnCheckURL = buildCheckURLFunc(program.checks);
+		rest.get(url).on('complete', fnCheckURL);
+	});
+    program.parse(process.argv);
 } else {
     exports.checkHtmlFile = checkHtmlFile;
 }
