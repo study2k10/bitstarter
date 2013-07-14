@@ -6,7 +6,7 @@ My personal try on the homework assignments, starting at HW03.
 The following assignments have their own branches to easier track progress,
 please have a look at them.
 
-Note for myself:
+Notes for myself:
 
 - To push a non-master branch to a Heroku app, do a
   ```git push <heroku-app-name> <my-branch-name>:master```
