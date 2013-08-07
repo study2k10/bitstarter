@@ -1,4 +1,4 @@
 bitstarter
 ==========
 
-Staging area.
+Development branch.
